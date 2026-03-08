@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Stroke Gained Putting</title>
+
+<!-- PWA meta tags pour iPhone (Safari) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SG Putting">
+<meta name="theme-color" content="#1a4a2e">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- Manifest inline via JS -->
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+  const manifest = {
+    name: "Stroke Gained Putting",
+    short_name: "SG Putting",
+    description: "Calculateur Stroke Gained au putting vs PGA Tour",
+    start_url: location.href,
+    display: "standalone",
+    background_color: "#1a4a2e",
+    theme_color: "#1a4a2e",
+    orientation: "portrait-primary",
+    icons: [{
+      src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAALEwAACxMBAJqcGAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAMtSURBVHic7dAxAQAAAMKg9U9tDB+gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBuAABHgAAAABJRU5ErkJggg==",
+      sizes: "192x192",
+      type: "image/png",
+      purpose: "any maskable"
+    }]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('link');
+  link.rel = 'manifest';
+  link.href = url;
+  document.head.appendChild(link);
+
+  // Service Worker inline
+  if ('serviceWorker' in navigator) {
+    const sw = `
+      const CACHE = 'sgp-v1';
+      self.addEventListener('install', e => {
+        self.skipWaiting();
+      });
+      self.addEventListener('fetch', e => {
+        e.respondWith(
+          caches.match(e.request).then(r => r || fetch(e.request).catch(() => new Response('', {status: 200})))
+        );
+      });
+    `;
+    const swBlob = new Blob([sw], {type: 'application/javascript'});
+    const swUrl = URL.createObjectURL(swBlob);
+    navigator.serviceWorker.register(swUrl).catch(() => {});
+  }
+});
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #1a4a2e;
+    --green-mid: #2d6e47;
+    --green-light: #3d8f5e;
+    --fairway: #4caf50;
+    --gold: #c9a84c;
+    --gold-light: #e8c96a;
+    --cream: #f5f0e8;
+    --white: #ffffff;
+    --red: #c0392b;
+    --blue: #2980b9;
+    --shadow: rgba(0,0,0,0.35);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--green);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 3px,
+        rgba(255,255,255,0.012) 3px,
+        rgba(255,255,255,0.012) 6px
+      );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 0 100px;
+  }
+
+  .header {
+    background: linear-gradient(160deg, #0d2b1a 0%, var(--green-mid) 100%);
+    padding: 28px 20px 20px;
+    border-bottom: 2px solid var(--gold);
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+
+  .header-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 3px;
+    color: var(--gold-light);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  }
+
+  .header-sub {
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    margin-top: 2px;
+  }
+
+  .summary-bar {
+    display: flex;
+    gap: 8px;
+    padding: 14px 16px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .stat-pill {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 8px 6px;
+    text-align: center;
+  }
+
+  .stat-pill .val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+
+  .stat-pill .val.pos { color: var(--fairway); }
+  .stat-pill .val.neg { color: #e74c3c; }
+  .stat-pill .val.neutral { color: var(--gold-light); }
+
+  .stat-pill .lbl {
+    font-size: 0.58rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    margin-top: 2px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    letter-spacing: 2px;
+    font-size: 0.9rem;
+    color: var(--gold);
+    padding: 16px 16px 8px;
+    text-transform: uppercase;
+  }
+
+  .input-card {
+    margin: 0 12px 12px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  }
+
+  .hole-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    color: var(--gold-light);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .hole-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: var(--green);
+    font-size: 0.85rem;
+    font-family: 'Bebas Neue', sans-serif;
+  }
+
+  .fields-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .field-group label {
+    font-size: 0.65rem;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .field-group input, .field-group select {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .field-group input:focus, .field-group select:focus {
+    border-color: var(--gold);
+  }
+
+  .field-group select option { background: #1a3a28; }
+
+  .dist-display {
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.35);
+    margin-top: 2px;
+    min-height: 14px;
+  }
+
+  .add-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--gold) 0%, #a07830 100%);
+    border: none;
+    border-radius: 12px;
+    color: var(--green);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: 6px;
+    box-shadow: 0 4px 12px rgba(201,168,76,0.35);
+  }
+
+  .add-btn:active { transform: scale(0.98); opacity: 0.9; }
+
+  .hole-row {
+    margin: 0 12px 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hole-row-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--gold);
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .hole-row-info { flex: 1; }
+
+  .hole-row-dist {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.5);
+  }
+
+  .hole-row-putts {
+    font-size: 0.82rem;
+    color: rgba(255,255,255,0.7);
+    margin-top: 1px;
+  }
+
+  .hole-row-sg {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .sg-pos { color: #4cde80; }
+  .sg-neg { color: #e74c3c; }
+  .sg-zero { color: rgba(255,255,255,0.5); }
+
+  .delete-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.2);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s;
+  }
+  .delete-btn:hover, .delete-btn:active { color: #e74c3c; }
+
+  .reset-btn {
+    display: block;
+    margin: 16px auto 0;
+    padding: 10px 28px;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 20px;
+    color: rgba(255,255,255,0.4);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .reset-btn:active { border-color: #e74c3c; color: #e74c3c; }
+
+  .info-box {
+    margin: 0 12px 16px;
+    padding: 12px 14px;
+    background: rgba(201,168,76,0.08);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 14px;
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.5);
+    line-height: 1.6;
+  }
+
+  .info-box strong { color: var(--gold-light); }
+
+  .empty-state {
+    text-align: center;
+    padding: 28px 20px;
+    color: rgba(255,255,255,0.2);
+    font-size: 0.82rem;
+    letter-spacing: 1px;
+  }
+
+  .bottom-fade {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    height: 90px;
+    background: linear-gradient(transparent, var(--green));
+    pointer-events: none;
+    z-index: 50;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-title">⛳ Stroke Gained</div>
+    <div class="header-sub">Putting · vs PGA Tour</div>
+  </div>
+
+  <div class="summary-bar">
+    <div class="stat-pill">
+      <div class="val neutral" id="totalHoles">0</div>
+      <div class="lbl">Trous</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val neutral" id="totalPutts">0</div>
+      <div class="lbl">Putts</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val neutral" id="totalSG">+0.00</div>
+      <div class="lbl">SG Total</div>
+    </div>
+    <div class="stat-pill">
+      <div class="val neutral" id="avgSG">+0.00</div>
+      <div class="lbl">SG / Trou</div>
+    </div>
+  </div>
+
+  <div class="section-title">Nouveau trou</div>
+  <div class="input-card">
+    <div class="hole-label">
+      <span class="hole-badge" id="nextHoleNum">1</span>
+      <span id="nextHoleLabel">TROU 1</span>
+    </div>
+
+    <div class="fields-row">
+      <div class="field-group">
+        <label>Distance 1er putt (m)</label>
+        <input type="number" id="distInput" placeholder="ex: 6.5" step="0.1" min="0.1" inputmode="decimal">
+        <div class="dist-display" id="distFeet"></div>
+      </div>
+      <div class="field-group">
+        <label>Nombre de putts</label>
+        <select id="puttsInput">
+          <option value="1">1 putt</option>
+          <option value="2" selected>2 putts</option>
+          <option value="3">3 putts</option>
+          <option value="4">4 putts</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="add-btn" onclick="addHole()">➕ AJOUTER CE TROU</button>
+  </div>
+
+  <div class="info-box">
+    <strong>Référence PGA Tour</strong> — Valeurs de putts espérés par distance, issues des données ShotLink officielle. Chaque distance est calculée individuellement (pas de fourchette).<br>
+    <strong>SG positif</strong> = mieux que le pro · <strong>SG négatif</strong> = moins bien
+  </div>
+
+  <div class="section-title" id="resultsTitle" style="display:none">Résultats trou par trou</div>
+  <div id="holesList"></div>
+  <div class="empty-state" id="emptyState">Entrez votre premier trou ci-dessus</div>
+  <button class="reset-btn" id="resetBtn" style="display:none" onclick="resetAll()">🗑 Réinitialiser la partie</button>
+
+</div>
+<div class="bottom-fade"></div>
+
+<script>
+const PGA_REF = [
+  [0.3, 1.000],[0.5, 1.001],[0.6, 1.002],[0.7, 1.003],[0.9, 1.006],
+  [1.0, 1.008],[1.2, 1.015],[1.5, 1.030],[1.8, 1.055],[2.0, 1.075],
+  [2.4, 1.120],[3.0, 1.200],[3.7, 1.290],[4.6, 1.390],[5.0, 1.430],
+  [6.1, 1.530],[7.3, 1.620],[9.1, 1.720],[10.7, 1.790],[12.2, 1.840],
+  [13.7, 1.880],[15.2, 1.910],[18.3, 1.950],[21.3, 1.970],[24.4, 1.982],
+  [27.4, 1.990],[30.5, 1.994],[36.6, 1.997],[45.7, 1.999],[60.0, 2.000],
+];
+
+function getExpectedPutts(d) {
+  if (d <= PGA_REF[0][0]) return PGA_REF[0][1];
+  if (d >= PGA_REF[PGA_REF.length-1][0]) return PGA_REF[PGA_REF.length-1][1];
+  for (let i = 0; i < PGA_REF.length - 1; i++) {
+    const [d0,p0] = PGA_REF[i], [d1,p1] = PGA_REF[i+1];
+    if (d >= d0 && d <= d1) return p0 + (d-d0)/(d1-d0)*(p1-p0);
+  }
+  return 2.0;
+}
+
+const KEY = 'sgp_holes_v1';
+function save() { try { localStorage.setItem(KEY, JSON.stringify(holes)); } catch(e) {} }
+function load() { try { const r = localStorage.getItem(KEY); return r ? JSON.parse(r) : []; } catch(e) { return []; } }
+
+let holes = load();
+
+document.getElementById('distInput').addEventListener('input', function() {
+  const m = parseFloat(this.value);
+  document.getElementById('distFeet').textContent = (!isNaN(m) && m > 0) ? `≈ ${(m/0.3048).toFixed(1)} pieds` : '';
+});
+
+function addHole() {
+  const dist = parseFloat(document.getElementById('distInput').value);
+  const putts = parseInt(document.getElementById('puttsInput').value);
+  if (isNaN(dist) || dist <= 0) { alert('Distance invalide.'); return; }
+  const expected = getExpectedPutts(dist);
+  holes.push({ dist, putts, expected, sg: expected - putts });
+  save();
+  document.getElementById('distInput').value = '';
+  document.getElementById('distFeet').textContent = '';
+  document.getElementById('puttsInput').value = '2';
+  renderHoles(); updateSummary();
+}
+
+function removeHole(idx) { holes.splice(idx, 1); save(); renderHoles(); updateSummary(); }
+
+function resetAll() {
+  if (confirm('Remettre à zéro toute la partie ?')) { holes = []; save(); renderHoles(); updateSummary(); }
+}
+
+function renderHoles() {
+  const list = document.getElementById('holesList');
+  const empty = document.getElementById('emptyState');
+  const title = document.getElementById('resultsTitle');
+  const resetBtn = document.getElementById('resetBtn');
+
+  if (holes.length === 0) {
+    list.innerHTML = ''; empty.style.display = 'block';
+    title.style.display = 'none'; resetBtn.style.display = 'none';
+    document.getElementById('nextHoleNum').textContent = 1;
+    document.getElementById('nextHoleLabel').textContent = 'TROU 1';
+    return;
+  }
+
+  empty.style.display = 'none'; title.style.display = 'block'; resetBtn.style.display = 'block';
+  const next = holes.length + 1;
+  document.getElementById('nextHoleNum').textContent = next;
+  document.getElementById('nextHoleLabel').textContent = `TROU ${next}`;
+
+  list.innerHTML = [...holes].reverse().map((h, ri) => {
+    const idx = holes.length - 1 - ri;
+    const cls = h.sg > 0.005 ? 'sg-pos' : h.sg < -0.005 ? 'sg-neg' : 'sg-zero';
+    const sgStr = (h.sg >= 0 ? '+' : '') + h.sg.toFixed(3);
+    const ft = (h.dist / 0.3048).toFixed(1);
+    return `<div class="hole-row">
+      <div class="hole-row-num">${idx+1}</div>
+      <div class="hole-row-info">
+        <div class="hole-row-dist">📍 ${h.dist.toFixed(1)} m &nbsp;(${ft} ft)</div>
+        <div class="hole-row-putts">🏌 ${h.putts} putt${h.putts>1?'s':''} · espéré ${h.expected.toFixed(3)}</div>
+      </div>
+      <div class="hole-row-sg ${cls}">${sgStr}</div>
+      <button class="delete-btn" onclick="removeHole(${idx})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function updateSummary() {
+  const n = holes.length;
+  const tp = holes.reduce((s,h) => s+h.putts, 0);
+  const ts = holes.reduce((s,h) => s+h.sg, 0);
+  const avg = n > 0 ? ts/n : 0;
+  document.getElementById('totalHoles').textContent = n;
+  document.getElementById('totalPutts').textContent = tp;
+  document.getElementById('totalSG').textContent = (ts>=0?'+':'')+ts.toFixed(2);
+  document.getElementById('avgSG').textContent = (avg>=0?'+':'')+avg.toFixed(2);
+  ['totalSG','avgSG'].forEach(id => {
+    const el = document.getElementById(id);
+    const v = parseFloat(el.textContent);
+    el.className = 'val '+(v>0.005?'pos':v<-0.005?'neg':'neutral');
+  });
+}
+
+renderHoles(); updateSummary();
+</script>
+</body>
+</html>
